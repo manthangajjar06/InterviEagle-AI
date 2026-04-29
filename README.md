@@ -42,7 +42,7 @@ The script injects a fixed-position overlay into the Google Meet DOM, maintains 
 
 ```bash
 # 1. Install Tampermonkey extension in Chrome
-# 2. Create a new userscript → paste InterviEagle.user.js
+# 2. Create a new userscript → paste TamperScript.js
 # 3. Update the CONFIG section:
 ```
 
