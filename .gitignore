@@ -1,0 +1,12 @@
+# Development files with real API keys
+tamper.js
+whisperAPI
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
