@@ -109,8 +109,8 @@ All configuration is in the `CONFIG` block (lines 17–22):
 ```javascript
 var GROQ_API_KEY    = 'YOUR_GROQ_API_KEY_HERE';
 var LLM_MODEL       = 'llama-3.3-70b-versatile';
-var ROLE            = 'AI/ML Junior Developer';   // your target role
-var COMPANY         = 'Google';                    // target company
+var ROLE            = 'YOUR_ROLE';   // your target role
+var COMPANY         = 'COMPANY';                    // target company
 var FINALIZE_DELAY  = 1500;                        // ms before finalizing a sentence
 ```
 
