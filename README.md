@@ -236,6 +236,22 @@ Used Chrome's `webkitSpeechRecognition` with Groq LLM for answer generation.
 
 ---
 
+## Limitations
+
+> **🚧 This project is currently in beta.**
+
+| Limitation | Details |
+|------------|---------|
+| **Platform** | Google Meet only (Zoom, Teams, etc. not yet supported) |
+| **Browser** | Google Chrome only (Tampermonkey + caption DOM structure is Chrome-specific) |
+| **Language** | English transcription only (depends on Meet's caption language setting) |
+| **Captions** | Requires Google Meet's caption feature to be available in your account |
+| **AI Model** | Requires a valid Groq API key (free tier has rate limits) |
+
+Support for additional platforms and browsers is planned for future releases.
+
+---
+
 ## Disclaimer
 
 This project is for **educational and personal practice purposes only**. It demonstrates DOM scraping, userscript development, and LLM API integration. The author assumes no responsibility for how it is used. Use responsibly.
