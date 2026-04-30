@@ -1,265 +1,212 @@
-<div align="center">
+# 🦅 InterviEagle AI — v10.1
 
-# 🦅 InterviEagle
+**A zero-latency AI interview copilot that runs as a Tampermonkey overlay on Google Meet.** It silently scrapes Google Meet's native captions, pipes the interviewer's questions through Groq's LLaMA 3.3 70B model, and renders structured, interview-ready answers in a glassmorphic floating panel — with zero configuration and no API costs for transcription.
 
-**It hears before you hear. It answers before you think.**
-
-An AI-powered real-time interview copilot for Google Meet.
-
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![Tampermonkey](https://img.shields.io/badge/Tampermonkey-Userscript-00485B?logo=tampermonkey&logoColor=white)](https://www.tampermonkey.net/)
-[![Groq](https://img.shields.io/badge/Groq-LLM_Inference-F55036?logo=groq&logoColor=white)](https://console.groq.com)
-[![LLaMA](https://img.shields.io/badge/LLaMA_3.3-70B-7B68EE?logo=meta&logoColor=white)](https://groq.com)
-[![Google Meet](https://img.shields.io/badge/Google_Meet-Integration-00897B?logo=googlemeet&logoColor=white)](https://meet.google.com)
-
-</div>
+![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black)
+![Tampermonkey](https://img.shields.io/badge/Tampermonkey-Userscript-00485B?logo=tampermonkey&logoColor=white)
+![Groq](https://img.shields.io/badge/Groq_API-LLM_Inference-F55036?logo=groq&logoColor=white)
+![LLaMA](https://img.shields.io/badge/LLaMA_3.3-70B_Versatile-7B68EE?logo=meta&logoColor=white)
+![Google Meet](https://img.shields.io/badge/Google_Meet-Caption_Scraping-00897B?logo=googlemeet&logoColor=white)
 
 ---
 
-InterviEagle silently scrapes Google Meet's native captions, pipes them through **Groq's LLaMA 3.3 70B**, and renders structured, interview-ready answers in a floating overlay — zero audio processing, zero transcription costs, sub-2s end-to-end latency.
-
-## Table of Contents
-
-- [How It Works](#how-it-works)
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
-- [Architecture](#architecture)
-- [Code Structure](#code-structure)
-- [Version History](#version-history)
-- [Disclaimer](#disclaimer)
-
----
-
-## How It Works
+## Architecture Overview
 
 ```
 Interviewer speaks
-    → Google Meet generates captions (native STT, zero latency)
-    → MutationObserver detects caption text in the DOM
-    → Smart filtering: only elements with 2+ text changes (live captions, not UI)
-    → Sentence deduplication via prefix tracking
-    → Transcript cleanup (filler removal, STT corrections)
-    → Groq LLaMA 3.3 70B generates a structured answer (~1.5s)
-    → Markdown-rendered response in a glassmorphic overlay
+    → Google Meet Captions (native, zero latency)
+    → DOM MutationObserver scrapes caption text
+    → Multi-strategy text extraction (prefix / suffix / length-diff)
+    → Sentence deduplication & STT corrections
+    → Groq API (LLaMA 3.3 70B, ~1.5s)
+    → Markdown-rendered answer
+    → Glassmorphic overlay on Meet
 ```
 
-The key insight: **Google Meet already transcribes everything.** Instead of building a complex audio pipeline, InterviEagle simply reads the captions Google already generates — then hides them and shows AI-generated answers instead.
+The script auto-enables Google Meet's built-in captions, hides the native caption bar, and observes DOM mutations to detect live caption text. A 3-strategy extraction pipeline handles Google Meet's accumulated caption text — including retroactive STT corrections — using prefix matching, tail/suffix anchoring, and length-based diffing. A 300-character sliding window keeps memory constant regardless of interview duration. Finalized sentences are cleaned, deduplicated, and sent to Groq's LLM with a structured interview-aware system prompt.
 
 ---
 
-## Features
+## ✨ Features
 
-| Category | Feature |
-|----------|---------|
-| **Transcription** | Zero-latency caption scraping via DOM `MutationObserver` |
-| **AI Engine** | Groq LLaMA 3.3 70B with structured interview prompts |
-| **Answer Frameworks** | Technical, behavioral (STAR), coding, system design, small talk |
-| **Resume Context** | Paste your resume; AI references your real projects and skills |
-| **Stealth** | Native captions hidden; only the overlay is visible |
-| **Manual Input** | Type questions directly when captions miss something |
-| **UI** | Draggable glassmorphic panel with glow animation |
-| **Reliability** | Auto-retry (2×), rate limiting (2s cooldown), context memory (10 msgs) |
+- 🎯 **Zero-Latency Transcription** — scrapes Google Meet's native captions via DOM observation (no audio processing, no STT API)
+- 🧠 **Structured AI Responses** — category-aware prompting (technical / behavioral / coding / system design) via Groq LLaMA 3.3 70B
+- 📄 **Resume-Aware Context** — paste your resume text; the AI weaves your real projects, skills, and experience into answers
+- 🕐 **Unlimited Interview Duration** — sliding window dedup + periodic cleanup means the script never degrades, even in 3+ hour interviews
+- 🔇 **Stealth Mode** — native caption bar is hidden; only the InterviEagle panel is visible
+- ⌨️ **Manual Fallback** — type questions directly when captions miss something
+- 🖱️ **Draggable Panel** — grab-and-move the overlay to any position on screen
+- 📋 **One-Click Copy** — hover to reveal, click to copy the answer to clipboard
+- 🔁 **Regenerate** — re-run the last question through the LLM
+- 💾 **Persistent History** — conversation history survives page refreshes (stored via GM_setValue)
+- 🔒 **Stealth Controls** — `Alt+P` toggles visibility, `Alt+C` wipes conversation history
+- 🔄 **Auto-Retry** — failed API calls retry up to 2× with exponential backoff
+- 🛡️ **Rate Limiting** — 2-second cooldown prevents API spam
+- 🧹 **Self-Cleaning Memory** — stale DOM references pruned every 15s, fallback caption scan every 3s
+- ✨ **Glow Animation** — panel softly pulses when actively listening
+- 🟢 **Status Indicators** — live green dot when active, grey when paused
 
 ---
 
-## Quick Start
+## 🚀 Setup
 
-### Prerequisites
-
-- Chrome, Edge, or Firefox
-- [Tampermonkey extension](https://www.tampermonkey.net/) installed
-- Free [Groq API key](https://console.groq.com) (no credit card required)
-
-### Installation
-
-**1.** Install Tampermonkey from your browser's extension store:
-
-| Browser | Link |
-|---------|------|
-| Chrome | [Chrome Web Store](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo) |
-| Edge | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/tampermonkey/iikmkjmpaadaobahmlepeloendndfphd) |
-| Firefox | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/) |
-
-**2.** Get your Groq API key:
-- Sign up at [console.groq.com](https://console.groq.com) (Google/GitHub login)
-- Go to **API Keys** → **Create API Key** → copy (starts with `gsk_...`)
-
-**3.** Create the userscript:
-- Click Tampermonkey icon → **Create a new script**
-- Delete the default template
-- Paste the contents of [`script.js`](script.js)
-- Replace the API key on **line 18**:
+```bash
+# 1. Install Tampermonkey extension in Chrome/Edge/Firefox
+# 2. Create a new userscript → paste script.js
+# 3. Update the CONFIG section:
+```
 
 ```javascript
-var GROQ_API_KEY = 'gsk_your_actual_key_here';
+var GROQ_API_KEY = 'your_groq_api_key';     // Get free at https://console.groq.com
+var ROLE         = 'AI/ML Junior Developer'; // Your target role
+var COMPANY      = 'Google';                 // Target company
 ```
 
-- **Ctrl+S** to save
-
-**4.** Join a Google Meet call → panel appears in ~3s → click **Start**.
+```bash
+# 4. Open any Google Meet call → overlay loads automatically
+# 5. Click "Start" → captions are auto-enabled and hidden
+# 6. (Optional) Click "Resume" to paste your resume for personalized answers
+```
 
 ---
 
-## Configuration
-
-All configuration is in the `CONFIG` block (lines 17–22):
-
-```javascript
-var GROQ_API_KEY    = 'YOUR_GROQ_API_KEY_HERE';
-var LLM_MODEL       = 'llama-3.3-70b-versatile';
-var ROLE            = 'YOUR_ROLE';   // your target role
-var COMPANY         = 'COMPANY';                    // target company
-var FINALIZE_DELAY  = 1500;                        // ms before finalizing a sentence
-```
-
-**Resume:** Click the `Resume` button in the panel header → paste your resume text → `Save`. Persisted via `GM_setValue` across sessions.
-
----
-
-## Keyboard Shortcuts
+## ⌨️ Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Alt + P` | Toggle panel visibility |
+| `Alt + P` | Toggle panel visibility (smooth fade) |
 | `Alt + C` | Clear conversation history |
 | `Enter` | Submit typed question |
-| Header drag | Reposition panel |
+| `Click + Drag` | Reposition panel (grab header) |
 
 ---
 
-## Architecture
+## 🔧 Caption Detection Engine (v10.1)
+
+The core innovation is a **3-strategy text extraction pipeline** that handles Google Meet's caption accumulation pattern — where all spoken text is appended to a single growing DOM element:
+
+### The Problem
+Google Meet doesn't create new elements per sentence. Instead, it appends all caption text into one growing element. After ~2 minutes, this string exceeds 500+ characters and keeps growing. Previous versions broke because they either capped text length or relied on simple prefix matching that failed when Meet retroactively corrected earlier words.
+
+### The Solution: Multi-Strategy Extraction
+
+| Strategy | When It Fires | How It Works |
+|----------|---------------|--------------|
+| **1. Prefix Match** | Early interview (< 300 chars) | `fullText.startsWith(lastFinalizedText)` → slices off the known prefix |
+| **2. Tail/Suffix Match** | STT corrected earlier words | Uses last 80 chars as anchor → `lastIndexOf()` finds it → extracts text after |
+| **3. Length-Diff** | Both strategies fail | Compares `fullText.length` vs `lastFinalizedLength` → extracts the growth delta with sentence boundary detection |
+
+### Durability Features
+
+| Feature | Mechanism |
+|---------|-----------|
+| **Sliding Window** | `lastFinalizedText` stores only the last 300 chars — memory stays constant for any interview length |
+| **Full Length Tracking** | `lastFinalizedLength` stores the true transcript length as an integer for accurate diff calculation |
+| **30s Inactivity Reset** | If no captions for 30 seconds, the dedup state resets to prevent permanent blocking |
+| **DOM Cleanup** | `textHistory` Map is pruned every 15s — detached elements are garbage collected |
+| **Fallback Scan** | Known caption containers are polled every 3s — catches anything MutationObserver missed |
+| **Caption Container Detection** | 12+ selectors covering multiple Meet DOM versions + `aria-live` region detection |
+
+---
+
+## 📐 Version History
+
+### v10.1 — Long-Interview Durability (Current)
+**Caption detection hardened for unlimited interview duration.** Fixed critical bugs that caused detection to die after 2-3 minutes.
+
+| Component | Change |
+|-----------|--------|
+| **Text Length Cap** | Removed the 500-char cap that killed detection on accumulated captions |
+| **Text Extraction** | 3-strategy pipeline: prefix → suffix/tail → length-diff (immune to STT corrections) |
+| **Sliding Window** | `lastFinalizedText` capped to 300-char tail; `lastFinalizedLength` tracks full length |
+| **Finalize Order** | `lastFinalizedText` cursor only advances AFTER confirming text will be used (prevents short phrases from blocking detection) |
+| **Min Length** | Lowered from 5 to 3 chars — short phrases like "okay" no longer silently dropped |
+| **Memory Management** | `textHistory` Map pruned every 15s; stale DOM references garbage collected |
+| **Fallback Scanning** | Caption containers polled every 3s via `scanForCaptions()` |
+| **Persistence** | `convHistory` saved to `GM_setValue`, restored on page reload |
+| **History Depth** | Increased from 10 to 20 messages (10 Q&A pairs) |
+| **Caption Selectors** | 12+ selectors for multiple Meet DOM versions + `aria-live` regions |
+| **Inactivity Reset** | `lastFinalizedText` auto-resets after 30s silence to prevent permanent blocking |
+| **Console Logging** | `[IE]` prefixed logs for DevTools debugging |
+
+### v10.0 — Caption Scraping + AI
+**Complete architecture pivot.** Replaced the entire audio capture pipeline with Google Meet's native caption scraping.
+
+| Component | Change |
+|-----------|--------|
+| **Transcription** | Caption DOM scraping via `MutationObserver` (zero latency) |
+| **AI Engine** | Groq LLaMA 3.3 70B with structured interview prompt |
+| **Sentence Detection** | Change-count tracking — only elements with 2+ text changes are captured |
+| **Deduplication** | Tracks finalized prefix; only new text portion is sent to AI |
+| **UI** | Glassmorphic panel with glow animation, status dots, Inter font |
+| **Captions** | Auto-enabled, native bar hidden with `opacity: 0` |
+| **Greetings** | AI now responds to all speech including small talk (no `[NOT A QUESTION]`) |
+
+### v8.0 — WebRTC + Whisper API + VAD
+**Audio-based approach.** Intercepted remote audio via WebRTC `RTCPeerConnection` patching, recorded speech segments using a custom VAD (Voice Activity Detection) engine, and transcribed via Groq's Whisper API.
+
+| Component | Technology |
+|-----------|------------|
+| **Audio Capture** | WebRTC `ontrack` hook → `AudioContext` → `MediaStreamDestination` mixer |
+| **Voice Detection** | Custom VAD state machine (IDLE → RECORDING → SILENCE → send) |
+| **Transcription** | Groq Whisper `whisper-large-v3-turbo` API (batch upload) |
+| **Noise Rejection** | Adaptive noise floor + speech confirmation (3 consecutive frames) |
+| **Latency** | ~1–1.5s after speaker pauses |
+
+**Why replaced:** Audio capture required complex WebRTC hooking, MediaRecorder management, and API costs for transcription. Caption scraping achieves the same result with zero latency and zero cost.
+
+### v2.0 — Web Speech API + AI
+**Original approach.** Used Chrome's `webkitSpeechRecognition` for speech-to-text with the AI answer pipeline.
+
+| Component | Technology |
+|-----------|------------|
+| **Transcription** | `webkitSpeechRecognition` (browser native) |
+| **AI Engine** | Groq LLaMA 3.3 70B |
+| **STT Corrections** | 20+ term mappings (sequel → SQL, pie torch → PyTorch) |
+| **Filler Removal** | Regex-based (um, uh, like, you know) |
+
+**Why replaced:** `webkitSpeechRecognition` only captures the local microphone — it cannot access remote participant audio from WebRTC streams. This meant it could only transcribe the user's own voice, not the interviewer's.
+
+---
+
+## 🧠 System Prompt Architecture
+
+The AI operates with a multi-framework system prompt:
+
+| Question Type | Framework |
+|--------------|-----------|
+| **Technical/Conceptual** | Definition → Mechanism → Example → Why it matters |
+| **Behavioral/Personal** | STAR method (Situation → Task → Action → Result) |
+| **Coding/Algorithm** | Approach → Code → Complexity → Edge cases |
+| **System Design** | Requirements → Architecture → Data flow → Trade-offs |
+| **Greetings/Small talk** | Warm, natural 1-2 sentence response |
+
+The prompt enforces first-person voice, interview-appropriate phrasing, bold key terms, and 120-200 word target length. Resume text (if provided) is injected for personalized behavioral answers.
+
+---
+
+## 🗂️ Project Structure
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  GOOGLE MEET                                                │
-│                                                             │
-│  Interviewer speaks → Native STT → Caption DOM elements     │
-│       │                                                     │
-│  ┌────▼───────────────────────────────────────────────┐     │
-│  │  TAMPERMONKEY USERSCRIPT                            │     │
-│  │                                                     │     │
-│  │  MutationObserver ──► trackElement() ──► filter     │     │
-│  │       │                                             │     │
-│  │       ▼                                             │     │
-│  │  extractNewText() ──► cleanTranscript() ──► AI      │     │
-│  │       │                                             │     │
-│  │       ▼                                             │     │
-│  │  GM_xmlhttpRequest ────► Groq API (LLaMA 3.3 70B)  │     │
-│  │       │                                             │     │
-│  │       ▼                                             │     │
-│  │  renderMd() ──► Glassmorphic overlay panel          │     │
-│  └─────────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Design Decisions
-
-| Decision | Why |
-|----------|-----|
-| `@run-at document-idle` | Meet's DOM must be fully loaded before injection |
-| `GM_xmlhttpRequest` | Bypasses Meet's Content Security Policy (CORS) |
-| `opacity: 0` for hiding captions | `display: none` would stop DOM mutations from firing |
-| Change-count ≥ 2 filter | Static UI text appears once; live captions grow word-by-word |
-| Prefix-based deduplication | Meet appends new sentences to the same DOM element |
-| 1500ms finalize delay | Balances speed vs. capturing the complete sentence |
-| Trusted Types policy | Meet enforces Trusted Types; `safeHTML()` handles this |
-
----
-
-## Code Structure
-
-```
-script.js (~420 lines)
-│
-├─ CONFIG ─────────────── API key, model, role, company
-├─ STATE ──────────────── Observer refs, caption tracking, conversation history
-│
-├─ §1 CAPTION SCRAPING
-│   ├─ enableCaptions()    Click the caption toggle button
-│   ├─ startObserver()     MutationObserver on document.body
-│   ├─ trackElement()      Filter + change-count tracking
-│   ├─ extractNewText()    Prefix deduplication
-│   ├─ handleCaption()     Interim display + finalize timer
-│   └─ finalizeCaption()   Clean → send to AI
-│
-├─ §2 SYSTEM PROMPT
-│   └─ buildSystemPrompt() Multi-framework interview prompt
-│
-├─ §3 GROQ LLM
-│   └─ sendToAI()          Rate-limited API call with 2× retry
-│
-├─ §4 HELPERS
-│   ├─ safeHTML()          Trusted Types-safe innerHTML
-│   ├─ renderMd()          Markdown → HTML (bold, code, lists)
-│   └─ el()                DOM element factory
-│
-└─ §5 UI
-    ├─ initUI()            Panel construction + event binding
-    ├─ Drag system         mousedown / mousemove / mouseup
-    ├─ Resume modal        Paste + persist resume text
-    └─ boot()              DOM-ready initialization
+intervieagle/
+├── script.js        # Tampermonkey userscript (install this)
+├── README.md        # This file
+└── .gitignore       # Ignores API keys and dev files
 ```
 
 ---
 
-## Version History
+## ⚠️ Security Notice
 
-### v10.0 — Caption Scraping *(current)*
-
-Complete architecture pivot. Replaced audio capture with Google Meet's native caption DOM scraping.
-
-- Zero-latency transcription (no audio processing)
-- Zero transcription costs (no Whisper API)
-- Sentence-level deduplication
-- All speech types answered (including greetings)
-- Glassmorphic UI with glow animations
-
-### v8.0 — WebRTC + Whisper + VAD
-
-Intercepted remote audio via `RTCPeerConnection` patching. Custom Voice Activity Detection engine with adaptive noise floor. Batch transcription via Groq Whisper API.
-
-- **Why replaced:** Complex audio pipeline (~500 lines), API costs for transcription, ~1.5s latency per chunk.
-
-### v2.0 — Web Speech API
-
-Used Chrome's `webkitSpeechRecognition` with Groq LLM for answer generation.
-
-- **Why replaced:** Web Speech API only captures the local microphone — cannot access remote participant audio from WebRTC streams.
+> **Never commit your API key to a public repository.**
+> The `script.js` file contains a placeholder — replace it with your own Groq API key locally.
 
 ---
 
-## Security
+## ⚠️ Disclaimer
 
-> **⚠️ Never commit your API key.** The published `script.js` contains a placeholder (`YOUR_GROQ_API_KEY_HERE`). Replace it locally after installing. The `.gitignore` excludes development files with real keys.
-
----
-
-## Limitations
-
-> **🚧 This project is currently in beta.**
-
-| Limitation | Details |
-|------------|---------|
-| **Platform** | Google Meet only (Zoom, Teams, etc. not yet supported) |
-| **Browser** | Google Chrome only (Tampermonkey + caption DOM structure is Chrome-specific) |
-| **Language** | English transcription only (depends on Meet's caption language setting) |
-| **Captions** | Requires Google Meet's caption feature to be available in your account |
-| **AI Model** | Requires a valid Groq API key (free tier has rate limits) |
-
-Support for additional platforms and browsers is planned for future releases.
+This project is built for **educational and personal practice purposes only**. It is a technical demonstration of DOM scraping, userscript development, and LLM integration. The author takes no responsibility for how it is used. Please exercise good judgment and respect the policies of any platform you use.
 
 ---
 
-## Disclaimer
-
-This project is for **educational and personal practice purposes only**. It demonstrates DOM scraping, userscript development, and LLM API integration. The author assumes no responsibility for how it is used. Use responsibly.
-
----
-
-<div align="center">
-
-**Built with precision** · From WebRTC hooks to caption scraping, every iteration got faster.
-
-</div>
+**Engineered with precision 🛠️ — from WebRTC hooks to caption scraping, every iteration got faster.**
