@@ -25,17 +25,35 @@
     var isActive = false;
     var observer = null;
     var lastFinalizedText = '';
+    var lastFinalizedLength = 0;
+    var lastFinalizedTime = 0;
     var finalizeTimer = null;
     var currentCaptionEl = null;
     var textHistory = new Map();
     var convHistory = [];
     var lastQuestion = '';
     var lastApiCall = 0;
+    var cleanupInterval = null;
+    var scanInterval = null;
+
+    // Known caption container selectors (covers multiple Meet versions)
+    var CAPTION_SELS = [
+        '.a4cQT', '.iOzk7', '[jscontroller].T4LgNb',
+        'div[class*="iOzk7"]', 'div[class*="a4cQT"]',
+        '.bh44bd', '.zSfwGf', '.iTTPOb',
+        '[jsname="tgaKEf"]', '[jsname="dsyhDe"]',
+        'div[aria-live="polite"]', 'div[aria-live="assertive"]'
+    ];
 
     // UI references
     var qEl = null, ansEl = null, statEl = null, toggleBtn = null;
     var resumeText = GM_getValue('resume_text', '');
     if (resumeText.length > 3000) resumeText = resumeText.substring(0, 3000) + '...';
+
+    // Restore conversation history
+    try { var _sc = GM_getValue('conv_history', ''); if (_sc) convHistory = JSON.parse(_sc); } catch (e) { convHistory = []; }
+
+    function log() { if (typeof console !== 'undefined') console.log.apply(console, ['[IE]'].concat(Array.prototype.slice.call(arguments))); }
 
     // STT corrections
     var STT_FIXES = {
@@ -72,13 +90,36 @@
         return false;
     }
 
+    function isInCaptionContainer(el) {
+        for (var i = 0; i < CAPTION_SELS.length; i++) {
+            try { if (el.closest(CAPTION_SELS[i])) return true; } catch (e) { }
+        }
+        try { if (el.closest('[aria-live]')) return true; } catch (e) { }
+        return false;
+    }
+
+    function scanForCaptions() {
+        for (var i = 0; i < CAPTION_SELS.length; i++) {
+            try {
+                var containers = document.querySelectorAll(CAPTION_SELS[i]);
+                for (var j = 0; j < containers.length; j++) {
+                    var spans = containers[j].querySelectorAll('span');
+                    for (var s = 0; s < spans.length; s++) {
+                        var t = spans[s].textContent && spans[s].textContent.trim();
+                        if (t && t.length >= 3 && t.length <= 500) trackElement(spans[s]);
+                    }
+                }
+            } catch (e) { }
+        }
+    }
+
     function startObserver() {
         if (observer) observer.disconnect();
         textHistory.clear();
-        // Hide native captions
+        // Hide native captions (broader selectors)
         var style = document.createElement('style');
         style.id = 'stt-hide';
-        style.textContent = '.a4cQT,.iOzk7,[jscontroller].T4LgNb,div[class*="iOzk7"],div[class*="a4cQT"]{opacity:0!important;pointer-events:none!important;}';
+        style.textContent = '.a4cQT,.iOzk7,[jscontroller].T4LgNb,div[class*="iOzk7"],div[class*="a4cQT"],.bh44bd,.zSfwGf,.iTTPOb,[jsname="tgaKEf"],[jsname="dsyhDe"]{opacity:0!important;pointer-events:none!important;}';
         if (!document.getElementById('stt-hide')) document.head.appendChild(style);
 
         observer = new MutationObserver(function (mutations) {
@@ -89,49 +130,105 @@
                     for (var n = 0; n < mut.addedNodes.length; n++) {
                         var node = mut.addedNodes[n];
                         if (node.nodeType === 3 && node.parentElement) trackElement(node.parentElement);
-                        if (node.nodeType === 1 && node.querySelectorAll) {
-                            var spans = node.querySelectorAll('span');
-                            for (var s = 0; s < spans.length; s++) trackElement(spans[s]);
+                        if (node.nodeType === 1) {
+                            trackElement(node);
+                            if (node.querySelectorAll) {
+                                var spans = node.querySelectorAll('span, div');
+                                for (var s = 0; s < spans.length; s++) trackElement(spans[s]);
+                            }
                         }
                     }
                 }
             }
         });
-        observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+        observer.observe(document.body, { childList: true, subtree: true, characterData: true, characterDataOldValue: true });
+
+        // Periodic cleanup: remove DOM-detached elements from textHistory
+        if (cleanupInterval) clearInterval(cleanupInterval);
+        cleanupInterval = setInterval(function () {
+            textHistory.forEach(function (v, k) { if (!document.body.contains(k)) textHistory.delete(k); });
+        }, 15000);
+
+        // Periodic fallback scan for captions (catches anything MutationObserver missed)
+        if (scanInterval) clearInterval(scanInterval);
+        scanInterval = setInterval(function () { if (isActive) scanForCaptions(); }, 3000);
+
+        log('Observer started, cleanup+scan intervals active');
     }
 
     function trackElement(el) {
         if (!el || !el.textContent) return;
-        if (el.closest('#ie-wrap') || el.closest('button') || el.closest('[role="toolbar"]') || el.closest('[role="navigation"]')) return;
-        if (el.tagName === 'BUTTON' || el.tagName === 'INPUT') return;
+        if (el.closest('#ie-wrap') || el.closest('button') || el.closest('[role="toolbar"]') || el.closest('[role="navigation"]') || el.closest('input') || el.closest('textarea')) return;
+        if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') return;
         var text = el.textContent.trim();
-        if (!text || text.length < 3 || text.length > 500) return;
-        var rect = el.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return;
-        if (rect.bottom > window.innerHeight - 50 || rect.top < window.innerHeight * 0.4) return;
+        if (!text || text.length < 3) return;
+
+        var inCaption = isInCaptionContainer(el);
+
+        // Position filter — skip if already inside a known caption container
+        if (!inCaption) {
+            var rect = el.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+            if (rect.top < window.innerHeight * 0.2) return;
+            if (rect.top > window.innerHeight || rect.bottom < 0) return;
+        }
 
         var hist = textHistory.get(el);
         if (!hist) { hist = { prevText: '', changeCount: 0 }; textHistory.set(el, hist); }
         if (text !== hist.prevText) {
             hist.changeCount++;
             hist.prevText = text;
-            if (hist.changeCount >= 2) handleCaption(text, el);
+            if (inCaption || hist.changeCount >= 2) handleCaption(text, el);
         }
     }
 
     function extractNewText(fullText) {
+        // Reset stale lastFinalizedText after 30s of silence
+        if (lastFinalizedTime && (Date.now() - lastFinalizedTime > 30000)) {
+            log('Reset lastFinalizedText after 30s inactivity');
+            lastFinalizedText = '';
+            lastFinalizedLength = 0;
+        }
         if (!lastFinalizedText) return fullText;
+        if (fullText === lastFinalizedText) return null;
+
+        // Strategy 1: Exact prefix match (ideal case — no STT corrections)
         if (fullText.startsWith(lastFinalizedText)) {
             var np = fullText.slice(lastFinalizedText.length).trim();
             return np.length >= 2 ? np : null;
         }
-        return (fullText !== lastFinalizedText && fullText.length >= 3) ? fullText : null;
+
+        // Strategy 2: Tail/suffix match — handles STT retroactively correcting earlier text
+        // Use last 80 chars of lastFinalizedText as anchor
+        var tailLen = Math.min(80, lastFinalizedText.length);
+        var tail = lastFinalizedText.slice(-tailLen);
+        var tailIdx = fullText.lastIndexOf(tail);
+        if (tailIdx !== -1) {
+            var np2 = fullText.slice(tailIdx + tail.length).trim();
+            return np2.length >= 2 ? np2 : null;
+        }
+
+        // Strategy 3: Length-based — if full text grew since last finalization, extract the tail
+        if (fullText.length > lastFinalizedLength + 3) {
+            var diff = fullText.length - lastFinalizedLength;
+            // Grab extra context to find a clean sentence boundary
+            var rawNew = fullText.slice(-(diff + 30)).trim();
+            var dotIdx = rawNew.indexOf('. ');
+            if (dotIdx !== -1 && dotIdx < 40) rawNew = rawNew.slice(dotIdx + 2);
+            return rawNew.length >= 3 ? rawNew : null;
+        }
+
+        // Text changed but didn't grow — likely just an STT correction, ignore
+        return null;
     }
 
     function handleCaption(text, el) {
         if (currentCaptionEl && currentCaptionEl !== el) {
-            var prev = currentCaptionEl.textContent?.trim();
-            if (prev) { var np = extractNewText(prev); if (np) finalizeCaption(np, prev); }
+            // Only read previous element if it's still in the DOM
+            if (document.body.contains(currentCaptionEl)) {
+                var prev = currentCaptionEl.textContent?.trim();
+                if (prev) { var np = extractNewText(prev); if (np) finalizeCaption(np, prev); }
+            }
         }
         currentCaptionEl = el;
         var newPart = extractNewText(text);
@@ -143,9 +240,15 @@
 
     function finalizeCaption(newText, fullText) {
         if (!newText || newText.length < 3) return;
-        lastFinalizedText = fullText || newText;
         var cleaned = cleanTranscript(newText);
-        if (cleaned.length < 5) return;
+        if (cleaned.length < 3) return;
+        // Only advance the cursor AFTER we confirm we'll use this text
+        // Keep only last 300 chars — sliding window so memory stays constant for any interview length
+        var ft = fullText || newText;
+        lastFinalizedText = ft.length > 300 ? ft.slice(-300) : ft;
+        lastFinalizedLength = ft.length;
+        lastFinalizedTime = Date.now();
+        log('Finalized caption:', cleaned.substring(0, 80));
         if (qEl) qEl.textContent = 'Q: "' + cleaned + '"';
         if (statEl) statEl.textContent = 'Sending to AI...';
         sendToAI(cleaned);
@@ -154,6 +257,8 @@
     function stopObserver() {
         if (observer) { observer.disconnect(); observer = null; }
         if (finalizeTimer) { clearTimeout(finalizeTimer); finalizeTimer = null; }
+        if (cleanupInterval) { clearInterval(cleanupInterval); cleanupInterval = null; }
+        if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
         textHistory.clear();
         var s = document.getElementById('stt-hide');
         if (s) s.remove();
@@ -221,7 +326,8 @@
                         if (ansEl) ansEl.scrollTop = 0;
                         if (statEl) statEl.textContent = 'Ready';
                         convHistory.push({ role: 'user', content: question }, { role: 'assistant', content: ans });
-                        if (convHistory.length > 10) convHistory = convHistory.slice(-10);
+                        if (convHistory.length > 20) convHistory = convHistory.slice(-20);
+                        try { GM_setValue('conv_history', JSON.stringify(convHistory)); } catch (e) { }
                     } else { if (statEl) statEl.textContent = 'Empty response'; }
                 } catch (e) {
                     if (retryCount < 2) { setTimeout(function () { sendToAI(question, retryCount + 1); }, 1000); return; }
