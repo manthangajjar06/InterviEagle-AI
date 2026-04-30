@@ -89,7 +89,7 @@ The key insight: **Google Meet already transcribes everything.** Instead of buil
 **3.** Create the userscript:
 - Click Tampermonkey icon → **Create a new script**
 - Delete the default template
-- Paste the contents of [`InterviEagle.user.js`](InterviEagle.user.js)
+- Paste the contents of [`script.js`](script.js)
 - Replace the API key on **line 18**:
 
 ```javascript
@@ -171,7 +171,7 @@ var FINALIZE_DELAY  = 1500;                        // ms before finalizing a sen
 ## Code Structure
 
 ```
-InterviEagle.user.js (~420 lines)
+script.js (~420 lines)
 │
 ├─ CONFIG ─────────────── API key, model, role, company
 ├─ STATE ──────────────── Observer refs, caption tracking, conversation history
@@ -232,7 +232,7 @@ Used Chrome's `webkitSpeechRecognition` with Groq LLM for answer generation.
 
 ## Security
 
-> **⚠️ Never commit your API key.** The published `InterviEagle.user.js` contains a placeholder (`YOUR_GROQ_API_KEY_HERE`). Replace it locally after installing. The `.gitignore` excludes development files with real keys.
+> **⚠️ Never commit your API key.** The published `script.js` contains a placeholder (`YOUR_GROQ_API_KEY_HERE`). Replace it locally after installing. The `.gitignore` excludes development files with real keys.
 
 ---
 
