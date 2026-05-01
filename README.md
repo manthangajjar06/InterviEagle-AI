@@ -1,9 +1,10 @@
-# 🦅InterviEagle AI
+# 🦅InterviEagle AI — v10.2
 
 **It hears before you hear. It answers before you think.**
 
 An AI-powered real-time interview copilot for Google Meet.
 
+[![Version](https://img.shields.io/badge/version-10.2-blue?style=flat-square)]()
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Tampermonkey](https://img.shields.io/badge/Tampermonkey-Userscript-00485B?logo=tampermonkey&logoColor=white)](https://www.tampermonkey.net/)
 [![Groq](https://img.shields.io/badge/Groq_API-LLM_Inference-F55036?logo=groq&logoColor=white)](https://console.groq.com)
@@ -259,7 +260,16 @@ script.js (~530 lines)
 
 ## Version History
 
-### v10.1 — Long-Interview Durability (Current)
+### v10.2 — Extended Sliding Window (Current)
+
+Increased the caption sliding window from 300 to 1000 characters, providing approximately 200 words of anchor context for the suffix/tail matching strategy. This significantly improves deduplication accuracy on long, complex sentences and reduces false negatives during rapid speech.
+
+| Change | Details |
+|--------|---------|
+| Sliding Window | Expanded from 300 to 1000 characters. Provides a larger anchor for Strategy 2 (suffix matching), reducing missed captions during extended dialogue. |
+| Dedup Accuracy | With ~200 words of trailing context, `lastIndexOf()` anchoring succeeds more often, reducing fallback to the less precise length-diff strategy. |
+
+### v10.1 — Long-Interview Durability
 
 Caption detection hardened for unlimited interview duration. Fixed critical bugs that caused detection to die after 2–3 minutes.
 
@@ -363,4 +373,14 @@ This project is built for **educational and personal practice purposes only**. I
 
 ---
 
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+<div align="center">
+
 *From WebRTC hooks to caption scraping — every iteration got faster, leaner, and more resilient.*
+
+</div>
