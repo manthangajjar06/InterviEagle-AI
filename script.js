@@ -243,9 +243,9 @@
         var cleaned = cleanTranscript(newText);
         if (cleaned.length < 3) return;
         // Only advance the cursor AFTER we confirm we'll use this text
-        // Keep only last 300 chars — sliding window so memory stays constant for any interview length
+        // Keep only last 1000 chars — sliding window so memory stays constant for any interview length
         var ft = fullText || newText;
-        lastFinalizedText = ft.length > 300 ? ft.slice(-300) : ft;
+        lastFinalizedText = ft.length > 1000 ? ft.slice(-1000) : ft;
         lastFinalizedLength = ft.length;
         lastFinalizedTime = Date.now();
         log('Finalized caption:', cleaned.substring(0, 80));
