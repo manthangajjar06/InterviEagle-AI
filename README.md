@@ -373,12 +373,6 @@ This project is built for **educational and personal practice purposes only**. I
 
 ---
 
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
 <div align="center">
 
 *From WebRTC hooks to caption scraping — every iteration got faster, leaner, and more resilient.*
